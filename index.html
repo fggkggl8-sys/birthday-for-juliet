@@ -30,11 +30,44 @@ Your Romeo ♡</div><button class="button" onclick="next()">One last thing... �
 <script>
 const pages=[...document.querySelectorAll('.page')];let index=0;
 function go(n){index=n;pages.forEach((p,i)=>p.classList.toggle('active',i===n));document.getElementById('progress').style.width=((n+1)/pages.length*100)+'%';window.scrollTo(0,0)}
-let audioCtx, master, musicTimer, musicOn=false, noteIndex=0;
+let audioCtx, master, reverb, musicTimer, musicOn=false, noteIndex=0;
 const melody=[261.63,329.63,392,329.63,293.66,349.23,440,349.23,261.63,329.63,392,523.25,440,392,329.63,293.66];
-function playTone(freq,duration=1.25,volume=.07){if(!audioCtx)return;const now=audioCtx.currentTime;const osc=audioCtx.createOscillator(),gain=audioCtx.createGain();osc.type='sine';osc.frequency.setValueAtTime(freq,now);gain.gain.setValueAtTime(.0001,now);gain.gain.exponentialRampToValueAtTime(volume,now+.08);gain.gain.exponentialRampToValueAtTime(.0001,now+duration);osc.connect(gain);gain.connect(master);osc.start(now);osc.stop(now+duration+.05)}
-function musicTick(){if(!musicOn)return;playTone(melody[noteIndex%melody.length],1.4,.055);if(noteIndex%4===0)playTone(melody[noteIndex%melody.length]/2,2.5,.035);noteIndex++}
-function toggleMusic(){if(!audioCtx){audioCtx=new(window.AudioContext||window.webkitAudioContext)();master=audioCtx.createGain();master.gain.value=.65;master.connect(audioCtx.destination)}if(audioCtx.state==='suspended')audioCtx.resume();musicOn=!musicOn;document.getElementById('musicToggle').textContent=musicOn?'♫ Music on':'♫ Music off';clearInterval(musicTimer);if(musicOn){musicTick();musicTimer=setInterval(musicTick,650)}}
+function initAudio(){
+  audioCtx=new(window.AudioContext||window.webkitAudioContext)();
+  master=audioCtx.createGain();master.gain.value=.48;master.connect(audioCtx.destination);
+  const delay=audioCtx.createDelay(1);delay.delayTime.value=.31;
+  const feedback=audioCtx.createGain();feedback.gain.value=.23;
+  const wet=audioCtx.createGain();wet.gain.value=.22;
+  delay.connect(feedback);feedback.connect(delay);delay.connect(wet);wet.connect(master);
+  reverb=delay;
+}
+function piano(freq,duration=1.5,volume=.075){
+  if(!audioCtx)return;
+  const now=audioCtx.currentTime;
+  [1,2,3].forEach((harmonic,i)=>{
+    const osc=audioCtx.createOscillator(),gain=audioCtx.createGain();
+    osc.type='sine';osc.frequency.setValueAtTime(freq*harmonic,now);
+    gain.gain.setValueAtTime(.0001,now);
+    gain.gain.exponentialRampToValueAtTime(volume/[1,4,10][i],now+.018);
+    gain.gain.exponentialRampToValueAtTime(.0001,now+duration);
+    osc.connect(gain);gain.connect(master);gain.connect(reverb);
+    osc.start(now);osc.stop(now+duration+.05);
+  });
+}
+function musicTick(){
+  if(!musicOn)return;
+  piano(melody[noteIndex%melody.length],1.65,.065);
+  if(noteIndex%4===0)piano(melody[noteIndex%melody.length]/2,2.8,.04);
+  noteIndex++;
+}
+function toggleMusic(){
+  if(!audioCtx)initAudio();
+  if(audioCtx.state==='suspended')audioCtx.resume();
+  musicOn=!musicOn;
+  document.getElementById('musicToggle').textContent=musicOn?'♫ Music on':'♫ Music off';
+  clearInterval(musicTimer);
+  if(musicOn){musicTick();musicTimer=setInterval(musicTick,760)}
+}
 function next(){if(index===0&&!musicOn)toggleMusic();go(Math.min(index+1,pages.length-1));burst(10)}
 function burst(count=35){for(let i=0;i<count;i++){const h=document.createElement('span');h.className='heart';h.textContent=['💗','💕','✨','💖','🌸'][Math.floor(Math.random()*5)];h.style.left=Math.random()*100+'vw';h.style.fontSize=(15+Math.random()*20)+'px';h.style.animationDuration=(2+Math.random()*3)+'s';document.body.appendChild(h);setTimeout(()=>h.remove(),5200)}}
 for(let i=0;i<75;i++){const s=document.createElement('span');s.className='star';s.style.left=Math.random()*100+'%';s.style.top=Math.random()*100+'%';s.style.animationDelay=Math.random()*3+'s';document.getElementById('stars').appendChild(s)}
